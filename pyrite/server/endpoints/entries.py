@@ -4,7 +4,7 @@ import io
 import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...config import PyriteConfig
 from ...exceptions import (
@@ -771,11 +771,12 @@ def get_entry(
     # Apply field projection
     if fields:
         fields_list = [f.strip() for f in fields.split(",")]
-        result = {k: result[k] for k in fields_list if k in result}
+        projected_fields = dict.fromkeys(("id", "kb_name", *fields_list))
+        result = {k: result[k] for k in projected_fields if k in result}
         neg = negotiate_response(request, result)
         if neg is not None:
             return neg
-        return result
+        return JSONResponse(content=result)
 
     neg = negotiate_response(request, result)
     if neg is not None:

@@ -213,6 +213,14 @@ class TestSearchEndpoints:
         data = response.json()
         assert len(data["results"]) <= 2
 
+    def test_search_with_fields_keeps_identity_fields(self, test_env):
+        client = test_env["client"]
+        response = client.get("/api/search?q=immigration&fields=title")
+
+        assert response.status_code == 200
+        result = response.json()["results"][0]
+        assert set(result) == {"id", "kb_name", "title"}
+
 
 class TestEntryEndpoints:
     """Test entry CRUD operations."""
@@ -235,6 +243,17 @@ class TestEntryEndpoints:
             data = response.json()
             assert "title" in data
             assert "body" in data
+
+    def test_get_entry_with_fields_keeps_identity_fields(self, test_env):
+        client = test_env["client"]
+        entry_id = client.get("/api/search?q=Stephen+Miller&kb=test-research").json()["results"][0][
+            "id"
+        ]
+
+        response = client.get(f"/api/entries/{entry_id}?kb=test-research&fields=title")
+
+        assert response.status_code == 200
+        assert set(response.json()) == {"id", "kb_name", "title"}
 
     def test_list_entries(self, test_env):
         client = test_env["client"]
