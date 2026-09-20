@@ -48,7 +48,14 @@ def search(
     include_body: bool = Query(
         False, description="Include full body text in results (default: snippet only)"
     ),
-    fields: str | None = Query(None, description="Comma-separated fields to return per result"),
+    fields: str | None = Query(
+        None,
+        description=(
+            "Comma-separated fields to return per result. "
+            "id and kb_name are always included; when fields is set the response is a "
+            "projection of the stored entry, not EntryResponse."
+        ),
+    ),
     group_by_kb: bool = Query(
         False, description="Return top results per KB instead of global ranking"
     ),

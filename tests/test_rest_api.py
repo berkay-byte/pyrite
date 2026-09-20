@@ -218,8 +218,20 @@ class TestSearchEndpoints:
         response = client.get("/api/search?q=immigration&fields=title")
 
         assert response.status_code == 200
-        result = response.json()["results"][0]
-        assert set(result) == {"id", "kb_name", "title"}
+        results = response.json()["results"]
+        assert results
+        for result in results:
+            assert set(result) == {"id", "kb_name", "title"}
+
+    def test_search_with_unknown_field_returns_identity_fields(self, test_env):
+        client = test_env["client"]
+        response = client.get("/api/search?q=immigration&fields=nope")
+
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert results
+        for result in results:
+            assert set(result) == {"id", "kb_name"}
 
 
 class TestEntryEndpoints:

@@ -728,7 +728,14 @@ def get_entry(
     entry_id: str,
     kb: str | None = Query(None, description="KB name (optional)"),
     with_links: bool = Query(False, description="Include links"),
-    fields: str | None = Query(None, description="Comma-separated fields to return"),
+    fields: str | None = Query(
+        None,
+        description=(
+            "Comma-separated fields to return. "
+            "id and kb_name are always included; when fields is set the response is a "
+            "projection of the stored entry, not EntryResponse."
+        ),
+    ),
     svc: KBService = Depends(get_kb_service),
     resolver=Depends(get_worktree_resolver),
     readable: set[str] | None = Depends(get_readable_kbs),

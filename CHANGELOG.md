@@ -150,6 +150,10 @@ which Pyrite stops being one person's experiment.
   routes, MCP over HTTP) are allowlisted pending the same treatment; they
   are tier-guarded today but not per-KB scoped.
 
+### Fixed
+
+- REST field projections now preserve `id` and `kb_name` (Berkay Byte).
+
 ### Added
 
 - **`pyrite --version` (also `-V`), which had never existed.** The CLI
