@@ -21,7 +21,7 @@ from pyrite.storage.repository import KBRepository
 @pytest.fixture
 def test_env():
     """Create test environment with sample data."""
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         tmpdir = Path(tmpdir)
         db_path = tmpdir / "index.db"
 
@@ -81,16 +81,17 @@ def test_env():
         app.dependency_overrides[get_db] = lambda: db
         app.dependency_overrides[get_index_mgr] = lambda: index_mgr
         client = TestClient(app)
-
-        yield {
-            "client": client,
-            "config": config,
-            "db": db,
-            "events_kb": events_kb,
-            "research_kb": research_kb,
-        }
-
-        db.close()
+        try:
+            yield {
+                "client": client,
+                "config": config,
+                "db": db,
+                "events_kb": events_kb,
+                "research_kb": research_kb,
+            }
+        finally:
+            db.close()
+            client.close()
 
 
 class TestCentralExceptionHandler:
