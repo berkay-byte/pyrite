@@ -30,12 +30,12 @@ from .versions import router as versions_router
 from .worktree import router as worktree_router
 
 all_routers = [
+    admin_router,  # Fixed /kbs/ephemeral must precede /kbs/{kb_name}.
     kbs_router,
     search_router,
     entries_router,
     timeline_router,
     tags_router,
-    admin_router,
     ai_router,
     starred_router,
     templates_router,
