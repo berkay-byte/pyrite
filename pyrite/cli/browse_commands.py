@@ -389,8 +389,10 @@ def register_browse_commands(app: typer.Typer) -> None:
         prefix: str = typer.Option(None, "--prefix", "-p", help="Filter tags by prefix"),
         limit: int = typer.Option(100, "--limit", "-n", help="Max tags to show"),
         output_format: str = typer.Option(
-            "json", "--format", callback=validate_output_format,
-            help="Output format: json, rich, markdown, csv, yaml"
+            "json",
+            "--format",
+            callback=validate_output_format,
+            help="Output format: json, rich, markdown, csv, yaml",
         ),
     ):
         """List tags with counts."""
@@ -425,8 +427,10 @@ def register_browse_commands(app: typer.Typer) -> None:
         entry_id: str = typer.Argument(..., help="Entry ID to find backlinks for"),
         kb_name: str = typer.Option(..., "--kb", "-k", help="Knowledge base name"),
         output_format: str = typer.Option(
-            "json", "--format", callback=validate_output_format,
-            help="Output format: json, rich, markdown, csv, yaml"
+            "json",
+            "--format",
+            callback=validate_output_format,
+            help="Output format: json, rich, markdown, csv, yaml",
         ),
     ):
         """Find entries that link to a given entry."""
