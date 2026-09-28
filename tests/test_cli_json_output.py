@@ -324,8 +324,11 @@ def test_search_without_include_body_omits_body_field(cli_env):
     [
         (["get", "any-entry"], "bogus"),
         (["search", "anything"], "jsonl"),
+        (["kb", "list"], "bogus"),
+        (["tags"], "bogus"),
+        (["backlinks", "any-entry", "-k", "any-kb"], "bogus"),
     ],
-    ids=["get", "search"],
+    ids=["get", "search", "kb-list", "tags", "backlinks"],
 )
 def test_unknown_format_is_a_usage_error(command, invalid_format):
     """Unknown --format values fail during argument parsing, not serialization."""
