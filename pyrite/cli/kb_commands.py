@@ -67,8 +67,10 @@ def kb_list(
         None, "--type", "-t", help="Filter by type (events/research)"
     ),
     output_format: str = typer.Option(
-        "json", "--format", callback=validate_output_format,
-        help="Output format: json, rich, markdown, csv, yaml"
+        "json",
+        "--format",
+        callback=validate_output_format,
+        help="Output format: json, rich, markdown, csv, yaml",
     ),
 ):
     """List all configured knowledge bases."""
