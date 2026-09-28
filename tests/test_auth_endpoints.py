@@ -551,6 +551,11 @@ class TestEphemeralKBEndpoint:
         assert data["created"] is True
         assert data["ephemeral"] is True
 
+        listing = client.get("/api/kbs/ephemeral")
+        assert listing.status_code == 200
+        assert listing.json()["count"] == 1
+        assert listing.json()["ephemeral_kbs"][0]["name"] == data["name"]
+
     def test_ephemeral_kb_limit(self, tmpdir):
         client, config, db = _make_client(tmpdir)
         # Seed an admin
