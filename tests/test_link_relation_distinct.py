@@ -16,6 +16,7 @@ This file also pins the reporting and rendering bugs the groom named:
   tag and swallowing it.
 """
 
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -316,3 +317,20 @@ def test_cli_link_bidi_confirmation_shows_the_inverse_relation(link_env):
     from pyrite.schema import get_inverse_relation
 
     assert get_inverse_relation("implements") in clean, clean
+
+
+def test_cli_backlinks_preserve_custom_relation_and_known_inverse(link_env):
+    db = PyriteDB(link_env["db_path"])
+    try:
+        svc = KBService(link_env["config"], db)
+        svc.add_link("link-a", "lk", "link-b", relation="informs")
+        svc.add_link("link-a", "lk", "link-b", relation="supports")
+    finally:
+        db.close()
+
+    with _patch_config(link_env):
+        result = runner.invoke(app, ["backlinks", "link-b", "-k", "lk", "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    relations = {entry["relation"] for entry in json.loads(result.output)["entries"]}
+    assert relations == {"informs", "supported_by"}
