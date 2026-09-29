@@ -379,6 +379,9 @@ def _authorize_declarations(dependant) -> set:
     return found
 
 
+_SPA_STATIC_OPERATIONS = {"GET /favicon.ico", "GET /{path:path}"}
+
+
 def _operations(app=None) -> dict[str, APIRoute]:
     """name -> route for every REST operation (HEAD/OPTIONS are the framework's)."""
     from pyrite.server.api import create_app
@@ -389,8 +392,9 @@ def _operations(app=None) -> dict[str, APIRoute]:
     out = {}
     for path, route in _walk_routes(app.routes):
         for method in sorted(route.methods or ()):
-            if method not in ("HEAD", "OPTIONS"):
-                out[f"{method} {path}"] = route
+            name = f"{method} {path}"
+            if method not in ("HEAD", "OPTIONS") and name not in _SPA_STATIC_OPERATIONS:
+                out[name] = route
     return out
 
 
@@ -506,6 +510,19 @@ def test_every_rest_operation_passes_the_policy_exactly_once():
     check_rest(_real_operations(), PUBLIC_ENTRY_POINTS, REST_NOT_YET_MIGRATED)
 
 
+@pytest.mark.parametrize("built", [False, True], ids=["no-web-build", "web-build"])
+def test_policy_guard_is_independent_of_web_build(tmp_path, monkeypatch, built):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    if built:
+        (dist / "index.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setenv("PYRITE_STATIC_DIR", str(dist))
+
+    operations = _operations()
+    assert set(operations) == set(_real_operations())
+    check_rest(operations, PUBLIC_ENTRY_POINTS, REST_NOT_YET_MIGRATED)
+
+
 @_UNCHANGED_SURFACE
 def test_the_lists_hold_only_what_is_still_owed():
     check_lists_owe(_real_operations(), PUBLIC_ENTRY_POINTS, REST_NOT_YET_MIGRATED)
@@ -560,7 +577,11 @@ def test_the_walk_sees_the_whole_app():
     assert len(ops) > 130
     assert any(name.startswith("GET /api/") for name in ops)
     assert any(name.startswith("POST /auth/") for name in ops)
-    inventory = {ep.name for ep in rest_operations() if ep.name.split()[0] not in ("HEAD",)}
+    inventory = {
+        ep.name
+        for ep in rest_operations()
+        if ep.name.split()[0] != "HEAD" and ep.name not in _SPA_STATIC_OPERATIONS
+    }
     assert set(ops) == inventory
 
 
