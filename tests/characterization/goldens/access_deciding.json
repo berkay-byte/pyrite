@@ -210,25 +210,25 @@
     "status": 403
   },
   "GET /api/kbs/ephemeral | admin_key": {
-    "status": 404
+    "status": 200
   },
   "GET /api/kbs/ephemeral | anonymous": {
-    "status": 404
+    "status": 403
   },
   "GET /api/kbs/ephemeral | global_user": {
-    "status": 404
+    "status": 403
   },
   "GET /api/kbs/ephemeral | granted_user": {
-    "status": 404
+    "status": 403
   },
   "GET /api/kbs/ephemeral | local_user": {
-    "status": 404
+    "status": 403
   },
   "GET /api/kbs/ephemeral | read_key": {
-    "status": 404
+    "status": 403
   },
   "GET /api/kbs/ephemeral | write_key": {
-    "status": 404
+    "status": 403
   },
   "GET /api/settings | admin_key": {
     "status": 200
