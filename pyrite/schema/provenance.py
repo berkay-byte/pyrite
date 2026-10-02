@@ -281,4 +281,4 @@ def get_inverse_relation(relation: str) -> str:
     all_types = get_all_relationship_types()
     if relation in all_types:
         return all_types[relation]["inverse"]
-    return relation
+    return "related_to"
