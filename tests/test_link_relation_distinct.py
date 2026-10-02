@@ -364,5 +364,72 @@ def test_cli_link_bidirectional_unknown_relation_never_writes_the_reversed_claim
     repo = KBRepository(link_env["config"].get_kb("lk"))
     target_links = {(lnk.target, lnk.relation) for lnk in repo.load("link-b").links}
     assert target_links == {("link-a", "related_to")}, target_links
-    clean = _strip_ansi(result.output)
-    assert "related_to" in clean and "No inverse is known" in clean, clean
+    # The notice is a diagnostic, not the result: it goes to stderr, so stdout
+    # holds only the two result lines (#590).
+    notice = _strip_ansi(result.stderr)
+    assert "No inverse is known for 'informs'" in notice, notice
+    assert "related_to" in notice, notice
+    stdout = _strip_ansi(result.stdout)
+    assert "No inverse is known" not in stdout, stdout
+    assert [ln for ln in stdout.splitlines() if ln.strip()] == [
+        "Linked: link-a --[informs]--> link-b (in lk)",
+        "Linked: link-b --[related_to]--> link-a (in lk)",
+    ], stdout
+
+
+def test_cli_link_bidirectional_notice_keeps_a_bracketed_relation(link_env):
+    """Rich reads `[dim]` as a style tag; the notice must print it, as `_report` does (#396)."""
+    with _patch_config(link_env):
+        result = runner.invoke(
+            app, ["link", "link-a", "link-b", "-k", "lk", "-r", "[dim]", "--bidi"]
+        )
+    assert result.exit_code == 0, result.output
+    assert "No inverse is known for '[dim]'" in _strip_ansi(result.stderr), result.stderr
+
+
+def _link_then_backlinks_table(link_env, cli, relations):
+    cli_app, table_args = cli
+    db = PyriteDB(link_env["db_path"])
+    try:
+        svc = KBService(link_env["config"], db)
+        for rel in relations:
+            svc.add_link("link-a", "lk", "link-b", relation=rel)
+    finally:
+        db.close()
+    with (
+        _patch_config(link_env),
+        patch("pyrite.read_cli.load_config", return_value=link_env["config"]),
+    ):
+        result = runner.invoke(cli_app, ["backlinks", "link-b", "-k", "lk", *table_args])
+    assert result.exit_code == 0, result.output
+    return _strip_ansi(result.stdout)
+
+
+def _table_clis():
+    """Both CLIs' table: `pyrite-read` prints it by default, `pyrite` (JSON by
+    default) under `--format rich`."""
+    from pyrite.read_cli import app as read_app
+
+    return [
+        pytest.param((read_app, []), id="pyrite-read-default"),
+        pytest.param((app, ["--format", "rich"]), id="pyrite-format-rich"),
+    ]
+
+
+@pytest.mark.parametrize("cli", _table_clis())
+def test_cli_backlinks_table_shows_the_relation_as_written(link_env, cli):
+    """#527's symptom was the table: `related_to` shown for `informs`.
+
+    The table keeps `Relation` (this entry's reading) and adds the relation as
+    the source's file wrote it, the same way in both CLIs.
+    """
+    table = _link_then_backlinks_table(link_env, cli, ["informs"])
+    assert "Written as" in table, table
+    row = next(ln for ln in table.splitlines() if "link-a" in ln)
+    assert "informs" in row and "related_to" in row, table
+
+
+@pytest.mark.parametrize("cli", _table_clis())
+def test_cli_backlinks_table_keeps_a_bracketed_relation(link_env, cli):
+    table = _link_then_backlinks_table(link_env, cli, ["[dim]"])
+    assert "[dim]" in table, table

@@ -71,3 +71,55 @@ def test_mcp_kb_backlinks_carry_both_relations(w):
         readable_kbs=None,
     )
     _assert_rows(result["backlinks"])
+
+
+@pytest.mark.control(
+    reason="pins behaviour the first fix commit already has: inverse_relation is "
+    "computed at query time while relation is the stored column"
+)
+def test_a_row_indexed_before_the_type_was_declared_keeps_relation_and_gains_the_inverse(w):
+    """Stale row: `informs` was indexed while undeclared, so the link row stores
+    `related_to` as its inverse. When a plugin later declares the type,
+    `relation` stays `related_to` until a reindex and `inverse_relation`
+    answers with the declared inverse (docs/json-contracts.md, Backlink rows).
+    """
+    from unittest.mock import patch
+
+    from pyrite.schema import provenance
+
+    declared = dict(provenance.get_all_relationship_types())
+    declared["informs"] = {"inverse": "informed_by", "description": "declared later"}
+    with patch.object(provenance, "get_all_relationship_types", return_value=declared):
+        result = w.dispatch_tool(
+            "kb_backlinks",
+            {"entry_id": TARGET, "kb_name": READABLE},
+            client_kind="local",
+            readable_kbs=None,
+        )
+    row = _by_source(result["backlinks"])["informer"]
+    assert row["forward_relation"] == "informs"
+    assert row["relation"] == "related_to"
+    assert row["inverse_relation"] == "informed_by"
+
+
+@pytest.mark.parametrize("relation", ["transclusion", "references", "related"])
+@pytest.mark.control(
+    reason="pins the documented meaning of null: these relations are written by "
+    "Pyrite itself and are undeclared today; declaring them is a follow-up"
+)
+def test_inverse_relation_is_null_for_built_in_relations_with_no_declared_inverse(relation):
+    """`null` means "no inverse is declared", not "custom": the indexer writes
+    `transclusion` and `references` (storage/index.py) and `parse_links` writes
+    the legacy `related` (models/base.py), and none is a declared type.
+    If this fails because one was declared, update docs/json-contracts.md.
+    """
+    from pyrite.schema.provenance import known_inverse_relation
+
+    assert known_inverse_relation(relation) is None
+
+
+def test_kb_backlinks_tool_description_names_the_relation_fields():
+    from pyrite.server.tool_schemas import READ_TOOLS
+
+    description = READ_TOOLS["kb_backlinks"]["description"]
+    assert "forward_relation" in description and "inverse_relation" in description

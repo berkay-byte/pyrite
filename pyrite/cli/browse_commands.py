@@ -493,18 +493,6 @@ def register_browse_commands(app: typer.Typer) -> None:
                 typer.echo(formatted)
                 return
 
-            table = Table(title=f"Backlinks to {entry_id}")
-            table.add_column("ID", style="cyan")
-            table.add_column("Title")
-            table.add_column("Type", style="dim")
-            table.add_column("Relation", style="dim")
+            from .output import backlinks_table
 
-            for link in links:
-                table.add_row(
-                    link.get("id", ""),
-                    link.get("title", ""),
-                    link.get("entry_type", ""),
-                    link.get("relation", ""),
-                )
-
-            console.print(table)
+            console.print(backlinks_table(entry_id, links))

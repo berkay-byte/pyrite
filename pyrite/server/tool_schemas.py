@@ -175,7 +175,14 @@ READ_TOOLS = {
         },
     },
     "kb_backlinks": {
-        "description": "Get all entries that link TO a given entry (reverse link lookup).",
+        "description": (
+            "Get all entries that link TO a given entry (reverse link lookup). "
+            "Each row carries three relation fields: `forward_relation` (what the "
+            "source's file says, as written), `relation` (this entry's reading: the "
+            "stored inverse, `related_to` when none was declared) and "
+            "`inverse_relation` (the declared inverse of `forward_relation`, null "
+            "when no inverse is declared for it)."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {

@@ -601,10 +601,14 @@ def register_entry_commands(app: typer.Typer) -> None:
                     # forward relation reversed (#527).
                     inverse = get_inverse_relation(relation)
                     if known_inverse_relation(relation) is None:
-                        console.print(
-                            f"[dim]No inverse is known for '{relation}'; "
-                            f"writing '{inverse}' on {target}.[/dim]"
+                        # A notice, not the result: stderr, so stdout holds
+                        # only the result lines (#590). The relation is free
+                        # text and may hold brackets; escape as `_report` does.
+                        notice = escape(
+                            f"No inverse is known for '{relation}'; "
+                            f"writing '{inverse}' on {target}."
                         )
+                        Console(stderr=True).print(f"[dim]{notice}[/dim]", soft_wrap=True)
                     inv_result = svc.add_link(
                         target, tkb, source, inverse, target_kb=kb_name, note=note
                     )
