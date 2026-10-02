@@ -307,6 +307,19 @@ A single entry (`kb_get`, `pyrite get`) returns the entry dict directly
 — not wrapped in an `{"entry": ...}` key. `outlinks` and `backlinks` are
 included when resolvable.
 
+### Backlink rows
+
+Each row in `backlinks` (and in `pyrite backlinks`, MCP `kb_backlinks`) reads
+from the entry's side, with three relation fields:
+
+| Field | Reads as | Unknown (custom) relation |
+|---|---|---|
+| `forward_relation` | what the source's file says, source → this entry, as written | the relation itself (`informs`) |
+| `relation` | this entry's relation to the source (the stored inverse) | `related_to` |
+| `inverse_relation` | the declared inverse of `forward_relation` | `null` |
+
+`outlinks` rows carry one field, `relation`, which is the forward relation.
+
 ## Body truncation
 
 Entries with large bodies may come back chunked. When truncated, the

@@ -50,6 +50,20 @@ def kb_names_clause(
     return f"{column} IN ({', '.join(keys)})"
 
 
+def _with_inverse_relation(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add ``inverse_relation`` to backlink rows: the declared inverse of
+    ``forward_relation``, or None when it is not a declared relationship type.
+    """
+    from ...schema.provenance import known_inverse_relation
+
+    out = []
+    for row in rows:
+        d = dict(row)
+        d["inverse_relation"] = known_inverse_relation(d["forward_relation"])
+        out.append(d)
+    return out
+
+
 class BaseBackend(ABC):
     """Shared ORM and raw-SQL logic for search backends."""
 
@@ -637,13 +651,24 @@ class BaseBackend(ABC):
     ) -> list[dict[str, Any]]:
         """Entries linking TO this one.
 
+        Each row reads from this entry's side, with three relation fields:
+
+        - ``relation``: how this entry relates to the source (the stored
+          inverse; ``related_to`` when the relation is not a declared type).
+        - ``forward_relation``: what the source's file says, source -> this
+          entry, exactly as written (``informs`` stays ``informs``).
+        - ``inverse_relation``: the declared inverse of ``forward_relation``,
+          ``None`` when it is not a declared type. Computed at query time, so
+          an index built before a plugin registered the type still answers.
+
         ``readable_kbs`` (the caller's ``ReadScope`` set; ``None`` unscoped)
         drops a source the caller cannot read -- the same answer as a source
         that does not exist, which never has a row here (P-R4, P-R5).
         """
         sql = """
             SELECT e.id, e.kb_name, e.title, e.entry_type,
-                   l.inverse_relation as relation, l.note
+                   l.inverse_relation as relation, l.relation as forward_relation,
+                   l.note
             FROM link l
             JOIN entry e ON l.source_id = e.id AND l.source_kb = e.kb_name
             WHERE l.target_id = :entry_id AND l.target_kb = :kb_name
@@ -656,7 +681,7 @@ class BaseBackend(ABC):
             sql += " LIMIT :limit OFFSET :offset"
             params["limit"] = limit
             params["offset"] = offset
-        return self._exec(sql, params)
+        return _with_inverse_relation(self._exec(sql, params))
 
     def get_outlinks(
         self, entry_id: str, kb_name: str, *, readable_kbs: set[str] | None
@@ -687,7 +712,8 @@ class BaseBackend(ABC):
         rows = self._exec(
             """
             SELECT l.target_id, e.id, e.kb_name, e.title, e.entry_type,
-                   l.inverse_relation as relation, l.note
+                   l.inverse_relation as relation, l.relation as forward_relation,
+                   l.note
             FROM link l
             JOIN entry e ON l.source_id = e.id AND l.source_kb = e.kb_name
             WHERE l.target_kb = :kb_name
@@ -698,7 +724,7 @@ class BaseBackend(ABC):
         for row in rows:
             d = dict(row)
             target_id = d.pop("target_id")
-            result[target_id].append(d)
+            result[target_id].append(_with_inverse_relation([d])[0])
         return result
 
     def get_all_outlinks_for_kb(self, kb_name: str) -> dict[str, list[dict[str, Any]]]:

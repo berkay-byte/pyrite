@@ -594,8 +594,17 @@ def register_entry_commands(app: typer.Typer) -> None:
 
                 if bidirectional:
                     from ..schema import get_inverse_relation
+                    from ..schema.provenance import known_inverse_relation
 
+                    # An unknown relation has no known inverse: write the
+                    # vague-but-true related_to on the target, never the
+                    # forward relation reversed (#527).
                     inverse = get_inverse_relation(relation)
+                    if known_inverse_relation(relation) is None:
+                        console.print(
+                            f"[dim]No inverse is known for '{relation}'; "
+                            f"writing '{inverse}' on {target}.[/dim]"
+                        )
                     inv_result = svc.add_link(
                         target, tkb, source, inverse, target_kb=kb_name, note=note
                     )

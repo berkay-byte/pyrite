@@ -276,8 +276,24 @@ def get_all_relationship_types() -> dict[str, dict[str, Any]]:
     return all_types
 
 
+def known_inverse_relation(relation: str) -> str | None:
+    """The inverse of a declared relationship type, or None when none is known.
+
+    ``get_inverse_relation`` answers ``related_to`` for an unknown relation,
+    which is right for writing a link on the other side (vague but true) and
+    wrong for reporting what the relation is. Use this to tell the two apart.
+    """
+    declared = get_all_relationship_types().get(relation)
+    return declared["inverse"] if declared else None
+
+
 def get_inverse_relation(relation: str) -> str:
-    """Get the inverse of a relationship type."""
+    """Get the inverse of a relationship type.
+
+    An unknown relation falls back to ``related_to``. This is a public export
+    and ``link --bidirectional`` writes the result onto the target's file, so
+    the fallback must stay a claim that is true in both directions (#527).
+    """
     all_types = get_all_relationship_types()
     if relation in all_types:
         return all_types[relation]["inverse"]

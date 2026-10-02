@@ -1,0 +1,73 @@
+"""A backlink says what the source's file wrote, on every surface (#527).
+
+`informs` is not a declared relationship type. A backlinks row for it carries
+`forward_relation` ("informs", source -> this entry, as written),
+`relation` (this entry's reading, the stored inverse; `related_to` for an
+unknown relation) and `inverse_relation` (the declared inverse, null when
+there is none). The CLI path is pinned in test_link_relation_distinct.py; this
+file enters through REST (`TestClient`) and MCP (`kb_backlinks`).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from pyrite.services.kb_service import KBService
+from tests.characterization.world import build_world
+from tests.link_scope_seed import READABLE
+
+TARGET = "relation-target"
+
+
+@pytest.fixture(scope="module")
+def w(tmp_path_factory):
+    world = build_world(tmp_path_factory, label="backlink-relations")
+    svc = KBService(world.config, world.db)
+    svc.create_entry(READABLE, TARGET, "Relation target", "note", "target")
+    svc.create_entry(READABLE, "informer", "Informer", "note", "x")
+    svc.create_entry(READABLE, "supporter", "Supporter", "note", "x")
+    svc.add_link("informer", READABLE, TARGET, relation="informs")
+    svc.add_link("supporter", READABLE, TARGET, relation="supports")
+    world.index_worker.wait_for_idle(timeout=10)
+    try:
+        yield world
+    finally:
+        world.close()
+
+
+def _by_source(rows):
+    return {r["id"]: r for r in rows}
+
+
+def _assert_rows(rows):
+    rows = _by_source(rows)
+    informer, supporter = rows["informer"], rows["supporter"]
+    assert informer["forward_relation"] == "informs"
+    assert informer["relation"] == "related_to"
+    assert informer["inverse_relation"] is None
+    assert supporter["forward_relation"] == "supports"
+    assert supporter["relation"] == "supported_by"
+    assert supporter["inverse_relation"] == "supported_by"
+
+
+def test_rest_entry_backlinks_carry_both_relations(w):
+    p = w.principals["admin_key"]
+    w.release_idle_connections()
+    r = w.client.get(
+        f"/api/entries/{TARGET}",
+        params={"kb": READABLE},
+        headers=p.rest_headers,
+        cookies=p.rest_cookies,
+    )
+    assert r.status_code == 200, r.text
+    _assert_rows(r.json()["backlinks"])
+
+
+def test_mcp_kb_backlinks_carry_both_relations(w):
+    result = w.dispatch_tool(
+        "kb_backlinks",
+        {"entry_id": TARGET, "kb_name": READABLE},
+        client_kind="local",
+        readable_kbs=None,
+    )
+    _assert_rows(result["backlinks"])

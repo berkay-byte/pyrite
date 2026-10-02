@@ -319,18 +319,50 @@ def test_cli_link_bidi_confirmation_shows_the_inverse_relation(link_env):
     assert get_inverse_relation("implements") in clean, clean
 
 
-def test_cli_backlinks_preserve_custom_relation_and_known_inverse(link_env):
+def _backlink_rows(link_env, relations):
     db = PyriteDB(link_env["db_path"])
     try:
         svc = KBService(link_env["config"], db)
-        svc.add_link("link-a", "lk", "link-b", relation="informs")
-        svc.add_link("link-a", "lk", "link-b", relation="supports")
+        for rel in relations:
+            svc.add_link("link-a", "lk", "link-b", relation=rel)
     finally:
         db.close()
 
     with _patch_config(link_env):
         result = runner.invoke(app, ["backlinks", "link-b", "-k", "lk", "--format", "json"])
-
     assert result.exit_code == 0, result.output
-    relations = {entry["relation"] for entry in json.loads(result.output)["entries"]}
-    assert relations == {"informs", "supported_by"}
+    return {row["forward_relation"]: row for row in json.loads(result.output)["entries"]}
+
+
+def test_cli_backlinks_report_the_stored_relation_for_a_custom_relation(link_env):
+    """#527: `informs` is not a known relation; the backlink must still say it.
+
+    `forward_relation` is what the source's file says (source -> target);
+    `relation` is the target's reading and keeps its related_to fallback;
+    `inverse_relation` is the known inverse, null when none is known.
+    """
+    rows = _backlink_rows(link_env, ["informs"])
+    row = rows["informs"]
+    assert row["relation"] == "related_to"
+    assert row["inverse_relation"] is None
+
+
+def test_cli_backlinks_report_both_directions_for_a_known_relation(link_env):
+    rows = _backlink_rows(link_env, ["supports"])
+    row = rows["supports"]
+    assert row["relation"] == "supported_by"
+    assert row["inverse_relation"] == "supported_by"
+
+
+def test_cli_link_bidirectional_unknown_relation_never_writes_the_reversed_claim(link_env):
+    with _patch_config(link_env):
+        result = runner.invoke(
+            app, ["link", "link-a", "link-b", "-k", "lk", "-r", "informs", "--bidi"]
+        )
+    assert result.exit_code == 0, result.output
+
+    repo = KBRepository(link_env["config"].get_kb("lk"))
+    target_links = {(lnk.target, lnk.relation) for lnk in repo.load("link-b").links}
+    assert target_links == {("link-a", "related_to")}, target_links
+    clean = _strip_ansi(result.output)
+    assert "related_to" in clean and "No inverse is known" in clean, clean
